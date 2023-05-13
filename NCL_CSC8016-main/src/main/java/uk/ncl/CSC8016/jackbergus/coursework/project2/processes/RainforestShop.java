@@ -100,12 +100,17 @@ public class RainforestShop {
         Optional<Transaction> result = Optional.empty();
         //CRITICAL SECTION - starts here due to read of allowed_clients and write of UUID_to_user
         //Note that I tried read/write locks but got a deadlock
-        if (allowed_clients.contains(username)) {
-            //if the username is on the allowed clients list, generate a UUID, put into UUID_to_user hashmap
-            UUID uuid = UUID.randomUUID();
-            UUID_to_user.put(uuid, username);
-            //valid Transaction object has been created and is available.
-            result = Optional.of(new Transaction(this, username, uuid));
+        loginLock.lock();
+        try {
+            if (allowed_clients.contains(username)) {
+                //if the username is on the allowed clients list, generate a UUID, put into UUID_to_user hashmap
+                UUID uuid = UUID.randomUUID();
+                UUID_to_user.put(uuid, username);
+                //valid Transaction object has been created and is available.
+                result = Optional.of(new Transaction(this, username, uuid));
+            }
+        } finally {
+            loginLock.unlock();
         }
         return result;
     }
