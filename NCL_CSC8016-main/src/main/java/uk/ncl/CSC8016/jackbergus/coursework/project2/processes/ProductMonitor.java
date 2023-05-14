@@ -24,6 +24,7 @@ import java.util.concurrent.locks.*;
 public class ProductMonitor {
     Queue<Item> available;
     Queue<Item> withdrawn;
+    Lock availableWithdrawnLock = new ReentrantLock();
 
     /**
      * Constructor
@@ -38,9 +39,14 @@ public class ProductMonitor {
      * @param cls
      */
     public void removeItemsFromUnavailability(Collection<Item> cls) {
-        for (Item x : cls) {
-            if (withdrawn.remove(x))
-                available.add(x);
+        availableWithdrawnLock.lock();
+        try {
+            for (Item x : cls) {
+                if (withdrawn.remove(x))
+                    available.add(x);
+            }
+        } finally {
+            availableWithdrawnLock.unlock();
         }
     }
 
@@ -50,12 +56,17 @@ public class ProductMonitor {
      */
     public Optional<Item> getAvailableItem() {
         Optional<Item> o = Optional.empty();
-        if (!available.isEmpty()) {
-            var obj = available.remove();
-            if (obj != null) {
-                o = Optional.of(obj);
-                withdrawn.add(o.get());
+        availableWithdrawnLock.lock();
+        try {
+            if (!available.isEmpty()) {
+                var obj = available.remove();
+                if (obj != null) {
+                    o = Optional.of(obj);
+                    withdrawn.add(o.get());
+                }
             }
+        } finally {
+            availableWithdrawnLock.unlock();
         }
         return o;
     }
@@ -69,9 +80,14 @@ public class ProductMonitor {
      */
     public boolean doShelf(Item u) {
         boolean result = false;
-        if (withdrawn.remove(u)) {
-            available.add(u);
-            result = true;
+        availableWithdrawnLock.lock();
+        try {
+            if (withdrawn.remove(u)) {
+                available.add(u);
+                result = true;
+            }
+        } finally {
+            availableWithdrawnLock.unlock();
         }
         return result;
     }
@@ -82,7 +98,12 @@ public class ProductMonitor {
      */
     public Set<String> getAvailableItems() {
         Set<String> s;
-        s = available.stream().map(x -> x.productName).collect(Collectors.toSet());
+        availableWithdrawnLock.lock();
+        try {
+            s = available.stream().map(x -> x.productName).collect(Collectors.toSet());
+        } finally {
+            availableWithdrawnLock.unlock();
+        }
         return s;
     }
 
@@ -91,20 +112,22 @@ public class ProductMonitor {
      * @param x
      */
     public void addAvailableProduct(Item x) {
-        available.add(x);
+        availableWithdrawnLock.lock();
+        try {
+            available.add(x);
+        } finally {
+            availableWithdrawnLock.unlock();
+        }
     }
 
     /**
      * Calculates the total cost
      * checks each item in toIterate against items in withdrawn list
      * if withdrawn contains that item, add item to currentlyPurchaseable, otherwise add item to currentlyUnavailable
-     * Takes in a list of items to attempt to purchase (toIterate)
-     * Takes in a list of purchase-able items (currentlyPurchasable)
-     * Takes in a list of unavailable items (currently Unavailable)
      * @param aDouble
-     * @param toIterate
-     * @param currentlyPurchasable
-     * @param currentlyUnavailable
+     * @param toIterate list of items to attempt to purchase (toIterate)
+     * @param currentlyPurchasable list of purchase-able items (currentlyPurchasable)
+     * @param currentlyUnavailable list of unavailable items (currently Unavailable)
      * @return
      */
     public double updatePurchase(Double aDouble,
@@ -112,13 +135,18 @@ public class ProductMonitor {
                                  List<Item> currentlyPurchasable,
                                  List<Item> currentlyUnavailable) {
         double total_cost = 0.0;
-        for (var x : toIterate) {
-            if (withdrawn.contains(x)) {
-                currentlyPurchasable.add(x);
-                total_cost += aDouble;
-            } else {
-                currentlyUnavailable.add(x);
+        availableWithdrawnLock.lock();
+        try {
+            for (var x : toIterate) {
+                if (withdrawn.contains(x)) {
+                    currentlyPurchasable.add(x);
+                    total_cost += aDouble;
+                } else {
+                    currentlyUnavailable.add(x);
+                }
             }
+        } finally {
+            availableWithdrawnLock.unlock();
         }
         return total_cost;
     }
@@ -130,10 +158,15 @@ public class ProductMonitor {
      * @param toIterate
      */
     public void makeAvailable(List<Item> toIterate) {
-        for (var x : toIterate) {
-            if (withdrawn.remove(x)) {
-                available.add(x);
+        availableWithdrawnLock.lock();
+        try {
+            for (var x : toIterate) {
+                if (withdrawn.remove(x)) {
+                    available.add(x);
+                }
             }
+        } finally {
+            availableWithdrawnLock.unlock();
         }
     }
 
@@ -145,11 +178,16 @@ public class ProductMonitor {
      */
     public boolean completelyRemove(List<Item> toIterate) {
         boolean allEmpty;
-        for (var x : toIterate) {
-            withdrawn.remove(x);
-            available.remove(x);
+        availableWithdrawnLock.lock();
+        try {
+            for (var x : toIterate) {
+                withdrawn.remove(x);
+                available.remove(x);
+            }
+            allEmpty = withdrawn.isEmpty() && available.isEmpty();
+        } finally {
+            availableWithdrawnLock.unlock();
         }
-        allEmpty = withdrawn.isEmpty() && available.isEmpty();
         return allEmpty;
     }
 }
