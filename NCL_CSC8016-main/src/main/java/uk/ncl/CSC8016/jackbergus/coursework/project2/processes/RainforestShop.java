@@ -21,7 +21,7 @@ public class RainforestShop {
     Lock loginLock = new ReentrantLock();
 
     private final boolean isGlobalLock;
-    private boolean supplierStopped;
+    private volatile boolean supplierStopped;
     private Set<String> allowed_clients; //usernames of clients, see login method
     public HashMap<UUID, String> UUID_to_user;
 
@@ -31,7 +31,7 @@ public class RainforestShop {
     //An available item is on the shelf
     //A withdrawn item is off the shelf (can be re-shelved)
     private volatile HashMap<String, ProductMonitor> available_withdrawn_products;
-    private HashMap<String, Double> productWithCost = new HashMap<>();
+    private HashMap<String, Double> productWithCost = new HashMap<>(); //the product name and its associated cost
     private volatile Queue<String> currentEmptyItem;
 
 
@@ -140,18 +140,23 @@ public class RainforestShop {
          */
         boolean result = false;
         // TODO: Implement the remaining part!
-        if (!allowed_clients.contains(transaction.getUsername()) ||
-                !UUID_to_user.containsKey(transaction.getUuid())) {
-            return result;
-        } else {
-            for (Item item : transaction.getUnmutableBasket()) {
-                ProductMonitor pm = available_withdrawn_products.get(item.productName);
-                if (pm != null) {
-                    pm.doShelf(item);
+        loginLock.lock();
+        try {
+            if (!allowed_clients.contains(transaction.getUsername()) ||
+                    !UUID_to_user.containsKey(transaction.getUuid())) {
+                return result;
+            } else {
+                for (Item item : transaction.getUnmutableBasket()) {
+                    ProductMonitor pm = available_withdrawn_products.get(item.productName);
+                    if (pm != null) {
+                        pm.doShelf(item);
+                    }
                 }
+                transaction.invalidateTransaction();
+                result = true;
             }
-            transaction.invalidateTransaction();
-            result = true;
+        } finally {
+            loginLock.unlock();
         }
         return result;
     }
