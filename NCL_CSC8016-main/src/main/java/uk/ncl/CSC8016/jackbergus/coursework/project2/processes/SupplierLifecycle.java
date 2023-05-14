@@ -5,14 +5,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * When shop supplier is notified by RainforestShop that items are missing, it will run its lifecycle
- * Essentially, this is restocking the shop with items that have been deemed missing by RainforestShop
+ * Essentially, this is restocking the shop with items that have been deemed unavailable by RainforestShop
  *
- *
- * Each time an allowed user logs in, a non-empty transaction will be created with an unique transaction ID.
- * The unavailability of the product shall be confirmed not while basketing the items, rather than after purchasing those.
- * At this stage, the shop supplier (SupplierLifecycle) might be notified that some products are missing (getNextMissingItem)
- * and refurbish the show with a non-zero amount of products of the same type (refurbishWithItems).
- * For simplicity sake, the refurbishWithItems method will be in charge of creating the number of desired product and
+ * At this stage, the shop supplier (SupplierLifecycle) might be notified that some products are
+ * missing (getNextMissingItem - to implement in RFS) and refurbish the shop with a non-zero amount of
+ * products of the same type (refurbishWithItems - already implemented in RFS).
+ * For simplicity's sake, the refurbishWithItems method will be in charge of creating the number of desired products and
  * to place them on the shelf.
  */
 

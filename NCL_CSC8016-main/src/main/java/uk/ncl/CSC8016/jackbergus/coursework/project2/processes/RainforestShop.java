@@ -100,6 +100,7 @@ public class RainforestShop {
         Optional<Transaction> result = Optional.empty();
         //CRITICAL SECTION - starts here due to read of allowed_clients and write of UUID_to_user
         //Note that I tried read/write locks but got a deadlock
+        //I think I need to make UUID_to_user thread safe data structures
         loginLock.lock();
         try {
             if (allowed_clients.contains(username)) {
@@ -232,7 +233,7 @@ public class RainforestShop {
             I believe the algo should do the following:
             1. (DONE) verify that the Item object is in the transaction's basket
             2. (DONE) if not in transaction's basket, return false
-            3. (DONE) if in object's basket then doShelf on object
+            3. (DONE) if in transaction's basket then doShelf on object
                 3.1. (DONE) extract the product monitor for this item
                 3.2. (DONE) if not null then doShelf on it
             4. (DONE) return true

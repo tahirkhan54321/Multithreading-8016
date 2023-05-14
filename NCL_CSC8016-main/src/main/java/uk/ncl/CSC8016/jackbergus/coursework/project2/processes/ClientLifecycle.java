@@ -7,21 +7,28 @@ import java.util.Random;
 
 /**
  * This class is for the client lifecycle, i.e. how the client interacts with the rainforestShop class
+ * login to RainforestShop
+ * When a client logs in, a non-empty transaction is created with a unique transaction ID.
+ * The availability of a product is confirmed after the purchase is attempted.
+ * If a product is found to be unavailable, the shop supplier (SupplierLifecycle) can be notified.
+ * The shop supplier can provide information about the next missing item (getNextMissingItem).
+ * The shop supplier can refurbish the shop by creating a certain number of products of the same type (refurbishWithItems).
+ * The refurbished products are placed on the shelf for future availability.
  *
  */
 
 public class ClientLifecycle implements Runnable {
 
-    private final String username;
+    private final String username; //client's username
     private final RainforestShop s; //links to rainforestShop session s
-    private final int items_to_pick_up;
+    private final int items_to_pick_up; //number of items client wants to pick up
     private final double total_available_money, shelfing_prob; //how much money client has, likelihood of shelving
 
-    private final Random rng;
+    private final Random rng; //random number
 
-    private boolean doCheckOut = true;
+    private boolean doCheckOut = true; //boolean to facilitate whether client wants to check out or not
 
-    BasketResult l;
+    BasketResult l; //client's individual basket
 
     /**
      * constructor
@@ -81,6 +88,8 @@ public class ClientLifecycle implements Runnable {
 
     /**
      * Represents client lifecycle
+     * login, pick up items, shelve items, and perform checkout and payment based on
+     * the provided parameters and probabilities.
      */
     @Override
     public void run() {
@@ -89,7 +98,7 @@ public class ClientLifecycle implements Runnable {
         if (s != null) {
             s.login(username).ifPresent(transaction -> {
                 for (int i = 0; i< items_to_pick_up; i++) {
-                    var obj = UtilityMethods.getRandomElement(s.getAvailableItems(transaction), rng);
+                    var obj = UtilityMethods.getRandomElement(s.getAvailableItems(transaction), rng); //take in a list of items and return a random object from that list
                     if (obj == null) break;
                     if (transaction.basketProduct(obj)) {
                         if (rng.nextDouble(0.0, nextAfter) < shelfing_prob) {

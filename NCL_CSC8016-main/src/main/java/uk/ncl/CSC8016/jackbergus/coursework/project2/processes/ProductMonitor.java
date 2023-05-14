@@ -4,6 +4,7 @@ import uk.ncl.CSC8016.jackbergus.coursework.project2.utils.Item;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.util.concurrent.locks.*;
 
 /**
  * This class tracks the products which are available and withdrawn
@@ -11,11 +12,14 @@ import java.util.stream.Collectors;
  */
 
 /*
-    Why are these in a FIFO queue?
     They can still be removed from at any index in a LinkedList, queue is just the facilitating data structure in Java
     Also concurrency and efficiency
     Note that these data structures (available and withdrawn) are accessed concurrently by various methods in RainforestShop
     TODO: how will I ensure that these are thread safe?
+    TODO: Seeing as RainforestShop makes use of these in order to run, I think I need to implement re-entrant locks
+            on all bits of critical code in this class
+    TODO: Do I need to do anything to the data structures?
+            Answer - likely not, because locking the methods should make the data structures thread safe
  */
 public class ProductMonitor {
     Queue<Item> available;
