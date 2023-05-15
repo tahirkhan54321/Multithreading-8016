@@ -21,6 +21,8 @@ public class RainforestShop {
     Lock loginLock = new ReentrantLock();
 
     private final boolean isGlobalLock;
+    //added volatile to supplierStopped variable as it is accessed/modified by supplier stopping methods
+    // supplierStopped is only accessed within RainforestShop
     private volatile boolean supplierStopped;
     private Set<String> allowed_clients; //usernames of clients, see login method
     public HashMap<UUID, String> UUID_to_user;
@@ -145,19 +147,18 @@ public class RainforestShop {
             if (!allowed_clients.contains(transaction.getUsername()) ||
                     !UUID_to_user.containsKey(transaction.getUuid())) {
                 return result;
-            } else {
-                for (Item item : transaction.getUnmutableBasket()) {
-                    ProductMonitor pm = available_withdrawn_products.get(item.productName);
-                    if (pm != null) {
-                        pm.doShelf(item);
-                    }
-                }
-                transaction.invalidateTransaction();
-                result = true;
             }
         } finally {
             loginLock.unlock();
         }
+        for (Item item : transaction.getUnmutableBasket()) {
+            ProductMonitor pm = available_withdrawn_products.get(item.productName);
+            if (pm != null) {
+                pm.doShelf(item);
+            }
+        }
+        transaction.invalidateTransaction();
+        result = true;
         return result;
     }
 
@@ -173,20 +174,24 @@ public class RainforestShop {
             1. (DONE) verify the transaction's UUID and username against UUID_to_user
             2. (DONE) verify that the user is logged in
             3. (N/A) perhaps verify transaction's rainforestShop matches the current instance? /NO, one single rainforest shop
-            4. (DONE) iterate over available_withdrawn_products
+            4. (DONE) iterate over available_withdrawn_products (AWP)
             5. (DONE) for each entry in AWP, use getAvailableItems (Set<String>) method from PM
             6. (DONE) for each getAvailableItems, add them to the List
             TEST: Passed
          */
         List<String> ls = Collections.emptyList();
         // TODO: Implement the remaining part!
-        if (!allowed_clients.contains(transaction.getUsername()) ||
-                !UUID_to_user.containsKey(transaction.getUuid())) {
-            return ls;
-        } else {
-            for (Map.Entry<String, ProductMonitor> entry : available_withdrawn_products.entrySet()) {
-                ls.addAll(entry.getValue().getAvailableItems());
+        loginLock.lock();
+        try {
+            if (!allowed_clients.contains(transaction.getUsername()) ||
+                    !UUID_to_user.containsKey(transaction.getUuid())) {
+                return ls;
             }
+        } finally {
+            loginLock.unlock();
+        }
+        for (Map.Entry<String, ProductMonitor> entry : available_withdrawn_products.entrySet()) {
+            ls.addAll(entry.getValue().getAvailableItems());
         }
         return ls;
     }
@@ -267,9 +272,9 @@ public class RainforestShop {
     public void stopSupplier() {
         /* The specific message it needs to send is "@stop!", this will stop the SupplierLifecycle run method
             currentEmptyItem is a volatile Queue of Strings
-
          */
         // TODO: Provide a correct concurrent implementation!
+        // I have made currentEmptyItem volatile for thread safety
         currentEmptyItem.add("@stop!");
     }
 
@@ -280,13 +285,14 @@ public class RainforestShop {
      */
     public void supplierStopped(AtomicBoolean stopped) {
         // TODO: Provide a correct concurrent implementation!
+        //supplierStopped is a volatile boolean so this should be thread safe
         supplierStopped = true;
         stopped.set(true);
     }
 
     /**
      * the shop supplier (SupplierLifecycle) might be notified that some products are missing (getNextMissingItem)
-     *
+     * <p>
      * The supplier invokes this method when it needs to know that a new product shall be made ready available.
      * <p>
      * This method should be blocking (if currentEmptyItem is empty, then this should wait until currentEmptyItem
@@ -299,7 +305,8 @@ public class RainforestShop {
         supplierStopped = false;
         while (currentEmptyItem.isEmpty()) {
 
-        };
+        }
+        ;
         return currentEmptyItem.remove();
     }
 
