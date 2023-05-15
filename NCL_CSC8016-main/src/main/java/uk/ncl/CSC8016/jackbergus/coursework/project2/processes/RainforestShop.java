@@ -189,6 +189,7 @@ public class RainforestShop {
             }
         } finally {
             loginLock.unlock();
+            ls = new ArrayList<>();
         }
         for (Map.Entry<String, ProductMonitor> entry : available_withdrawn_products.entrySet()) {
             ls.addAll(entry.getValue().getAvailableItems());
@@ -302,11 +303,11 @@ public class RainforestShop {
      */
     public String getNextMissingItem() {
         // TODO: Provide a correct concurrent implementation!
+        //currentEmptyItem is volatile so this should be thread safe
         supplierStopped = false;
         while (currentEmptyItem.isEmpty()) {
 
-        }
-        ;
+        };
         return currentEmptyItem.remove();
     }
 
